@@ -1,4 +1,7 @@
 ###################
+## Mariel Setton
+## Thursday 3-4 discussion
+
 import json
 import unittest
 import random
