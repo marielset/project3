@@ -8,8 +8,8 @@ import tweepy
 import twitter_info # still need this in the same directory, filled out
 
 ## Make sure to comment with:
-# Your name:
-# The names of any people you worked with for this assignment:
+# Your name: Mariel Setton
+# The names of any people you worked with for this assignment: Lauren Sigurdson
 
 # ******** #
 ### Useful resources for this HW:
@@ -54,8 +54,27 @@ except:
 
 # Your function must cache data it retrieves and rely on a cache file!
 # Note that this is a lot like work you have done already in class (but, depending upon what you did previously, may not be EXACTLY the same, so be careful your code does exactly what you want here).
+def get_user_tweets(username):
+	unique_identifier = "twitter_{}".format(username) # seestring formatting chapter
+	# see if that username+twitter is in the cache diction!
+	if unique_identifier in CACHE_DICTION: # if it is...
+		# print('using cached data for', username)
+		twitter_results = CACHE_DICTION[unique_identifier] # grab the data from the cache!
+	else:
+		#print('getting data from internet for', username)
+		twitter_results = api.user_timeline(username) # get it from the internet
+		# but also, save in the dictionary to cache it!
+		CACHE_DICTION[unique_identifier] = twitter_results # add it to the dictionary -- new key-val pair
+		# and then write the whole cache dictionary, now with new info added, to the file, so it'll be there even after your program closes!
+		f = open(CACHE_FNAME,'w') # open the cache file for writing
+		f.write(json.dumps(CACHE_DICTION)) # make the whole dictionary holding data and unique identifiers into a json-formatted string, and write that wholllle string to a file so you'll have it next time!
+		f.close()
 
-
+	# now no matter what, you have what you need in the twitter_results variable still, go back to what we were doing!
+	tweeter = [] # collect 'em all!
+	for tweet in twitter_results:
+		tweeter.append(tweet)
+	return tweeter
 
 
 
@@ -71,27 +90,32 @@ except:
 # Below we have provided interim outline suggestions for what to do, sequentially, in comments.
 
 # Make a connection to a new database tweets.db, and create a variable to hold the database cursor.
-
-
+conn = sqlite3.connect('tweets.db')
+cur = conn.cursor()
 # Write code to drop the Tweets table if it exists, and create the table (so you can run the program over and over), with the correct (4) column names and appropriate types for each.
 # HINT: Remember that the time_posted column should be the TIMESTAMP data type!
+cur.execute('DROP TABLE IF EXISTS Tweets')
 
+table_spec = 'CREATE TABLE Tweets '
+table_spec += '(tweet_id INTEGER, time_posted TIMESTAMP, tweet_texts TEXT, retweets INTEGER)'
+cur.execute(table_spec)
 
 # Invoke the function you defined above to get a list that represents a bunch of tweets from the UMSI timeline. Save those tweets in a variable called umsi_tweets.
-
+umsi_tweets = get_user_tweets("UMSI")
 
 
 
 # Use a for loop, the cursor you defined above to execute INSERT statements, that insert the data from each of the tweets in umsi_tweets into the correct columns in each row of the Tweets database table.
 
 # (You should do nested data investigation on the umsi_tweets value to figure out how to pull out the data correctly!)
+for s in umsi_tweets:
+	cur.execute('INSERT INTO Tweets(tweet_id, time_posted, tweet_texts, retweets) VALUES (?, ?, ?, ?)', (s["id"], s["created_at"], s["text"], s["retweet_count"]))
 
-
-
+#(s["id"], s["user"], s["created_at"], s["text"], s["retweet_count"])
 
 # Use the database connection to commit the changes to the database
 
-
+conn.commit()
 
 # You can check out whether it worked in the SQLite browser! (And with the tests.)
 
@@ -104,18 +128,23 @@ except:
 
 
 # Select from the database all of the TIMES the tweets you collected were posted and fetch all the tuples that contain them in to the variable tweet_posted_times.
-
+query = "SELECT time_posted FROM Tweets"
+tweet_posted_times = cur.execute(query)
+for f in tweet_posted_times:
+	query += 'SELECT * FROM '
 
 # Select all of the tweets (the full rows/tuples of information) that have been retweeted MORE than 2 times, and fetch them into the variable more_than_2_rts.
-
+query = "SELECT * FROM Tweets WHERE retweets > 2"
+more_than_2_rts = cur.execute(query)
 
 
 # Select all of the TEXT values of the tweets that are retweets of another account (i.e. have "RT" at the beginning of the tweet text). Save the FIRST ONE from that group of text values in the variable first_rt. Note that first_rt should contain a single string value, not a tuple.
-
-
+query = "SELECT tweet_text FROM Tweets WHERE instr(tweet_text, 'RT')"
+all_rt = cur.execute(query)
+first_rt = all_rt[0]
 
 # Finally, done with database stuff for a bit: write a line of code to close the cursor to the database.
-
+conn.close()
 
 
 ## [PART 3] - Processing data
@@ -131,7 +160,8 @@ except:
 # Also note that the SET type is what this function should return, NOT a list or tuple. We looked at very briefly at sets when we looked at set comprehensions last week. In a Python 3 set, which is a special data type, it's a lot like a combination of a list and a dictionary: no key-value pairs, BUT each element in a set is by definition unique. You can't have duplicates.
 
 # If you want to challenge yourself here -- this function definition (what goes under the def statement) CAN be written in one line! Definitely, definitely fine to write it with multiple lines, too, which will be much easier and clearer.
-
+def get_twitter_user(s):
+	return twitter_screennames
 
 
 
