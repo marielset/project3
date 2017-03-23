@@ -149,7 +149,7 @@ my_list = []
 for row in all_rt:
 	my_list.append(row)
 first_rt = my_list[0][0]
-print (type(first_rt))
+
 # Finally, done with database stuff for a bit: write a line of code to close the cursor to the database.
 conn.close()
 
@@ -167,10 +167,10 @@ conn.close()
 # Also note that the SET type is what this function should return, NOT a list or tuple. We looked at very briefly at sets when we looked at set comprehensions last week. In a Python 3 set, which is a special data type, it's a lot like a combination of a list and a dictionary: no key-value pairs, BUT each element in a set is by definition unique. You can't have duplicates.
 
 # If you want to challenge yourself here -- this function definition (what goes under the def statement) CAN be written in one line! Definitely, definitely fine to write it with multiple lines, too, which will be much easier and clearer.
-def get_twitter_user(s):
-	screennames = re.match('(?<=\@)([A-z]|[0-9]|\_)+',s)
+def get_twitter_users(s):
+	screennames = re.findall('(?<=\@)(\w+|\_)',s)
 	return {x for x in screennames}
-
+#print (type(setx))
 
 
 
