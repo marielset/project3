@@ -64,11 +64,10 @@ def get_user_tweets(username):
 		f = open(CACHE_FNAME,'w') # open the cache file for writing
 		f.write(json.dumps(CACHE_DICTION)) # make the whole dictionary holding data and unique identifiers into a json-formatted string, and write that wholllle string to a file so you'll have it next time!
 		f.close()
-	return twitter_results
-	# tweeter = [] # collect 'em all!
-	# for tweet in twitter_results:
-	# 	tweeter.append(tweet)
-	# return tweeter
+	tweeter = [] # collect 'em all!
+	for tweet in twitter_results:
+		tweeter.append(tweet)
+	return tweeter
 
 
 # Write an invocation to the function for the "umich" user timeline and save the result in a variable called umich_tweets:
@@ -106,10 +105,74 @@ umich_tweets = get_user_tweets("umich")
 ## HINT: There's a Tweepy method to get user info that we've looked at before, so when you have a user id or screenname you can find alllll the info you want about the user.
 ## HINT #2: You may want to go back to a structure we used in class this week to ensure that you reference the user correctly in each Tweet record.
 ## HINT #3: The users mentioned in each tweet are included in the tweet dictionary -- you don't need to do any manipulation of the Tweet text to find out which they are! Do some nested data investigation on a dictionary that represents 1 tweet to see it!
+conn = sqlite3.connect('project3_tweets.db')
+cur = conn.cursor()
+
+cur.execute('DROP TABLE IF EXISTS Tweets')
+
+table_spec = 'CREATE TABLE Tweets '
+table_spec += '(tweet_id TEXT PRIMARY KEY, text TEXT, user_id Text, time_posted TIMESTAMP, retweets INTEGER)'
+cur.execute(table_spec)
+
+cur.execute('DROP TABLE IF EXISTS Users')
+
+table_spec = 'CREATE TABLE Users '
+table_spec += '(user_id TEXT PRIMARY KEY, screen_name TEXT, num_favs TEXT, description TEXT)'
+cur.execute(table_spec)
+
+for s in umich_tweets:
+	cur.execute('INSERT OR IGNORE INTO Tweets (tweet_id, text, user_id, time_posted, retweets) VALUES (?, ?, ?, ?, ?)', (s["id_str"], s["text"], s["user"]["screen_name"], s["created_at"], s["retweet_count"]))
+
+for s in umich_tweets:
+	for u in s['entities']['user_mentions']:
+		myvar = api.get_user(u['screen_name'])
+		print(myvar)
+		print()
+		cur.execute('INSERT OR IGNORE INTO Users (user_id, screen_name, num_favs, description) VALUES (?, ?, ?, ?)', (myvar["id_str"], myvar["screen_name"], myvar["favourites_count"], myvar["description"]))
+conn.commit()
+
+# def find_user_in_db(conn, cur, user):
+# 	cur.execute("SELECT * FROM Users WHERE screen_name = ?", (user,))
+# 	if not cur.fetchone(): # If there isn't even one when you try to select one,
+# 		cur.execute('INSERT INTO Users (screen_name) VALUES (?)', (user))
+# 		conn.commit() 
+
+# 	cur.execute('SELECT user_id FROM Users WHERE screen_name = ?', (user,))
+# 	user_id = cur.fetchone()[0]
+# 	return user_id
+
+# def save_tweet(conn, cur, s):
+# 	for s in umich_tweets:
+# 		tweet_id = s['id_str']
+# 		text = s['text']
+# 		user_id = s['user']['screen_name']
+# 		time_posted = s["created_at"]
+# 		retweets = s["retweet_count"]
+
+# 	users = s['entities']['user_mentions']
 
 
+# 	for user in users: # each hashtag dictionary in a list??
+# 		find_user_in_db(conn, cur, user)
 
+# 	if len(users) > 0:
+# 		first_screen_name = users[0]["text"]
+# 		first_user_id = find_user_in_db(conn, cur, first_screen_name)
+# 	else:
+# 		first_user_id = None
 
+# 	cur.execute('SELECT * FROM Tweets WHERE tweet_id=' + str(tweet_id))
+
+# 	if not cur.fetchone(): # If a tweet with that id doesn't exist already,
+# 		cur.execute('INSERT OR IGNORE INTO Tweets VALUES (?, ?, ?, ?, ?)', (tweet_id, text, first_user_id, time_posted, retweets))
+# 		conn.commit()
+
+# f = open("SI206_project3_cache.json", "r")
+# fstr = f.read()
+# obj_lst = json.loads(fstr)
+# f.close()
+# for tweet in obj_lst:
+# 	save_tweet(conn, cur, tweet)
 
 
 
