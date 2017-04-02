@@ -74,7 +74,6 @@ def get_user_tweets(username):
 umich_tweets = get_user_tweets("umich")
 
 
-
 ## Task 2 - Creating database and loading data into database
 
 # You will be creating a database file: project3_tweets.db
@@ -121,13 +120,14 @@ table_spec += '(user_id TEXT PRIMARY KEY, screen_name TEXT, num_favs TEXT, descr
 cur.execute(table_spec)
 
 for s in umich_tweets:
-	cur.execute('INSERT OR IGNORE INTO Tweets (tweet_id, text, user_id, time_posted, retweets) VALUES (?, ?, ?, ?, ?)', (s["id_str"], s["text"], s["user"]["screen_name"], s["created_at"], s["retweet_count"]))
+	cur.execute('INSERT OR IGNORE INTO Tweets (tweet_id, text, user_id, time_posted, retweets) VALUES (?, ?, ?, ?, ?)', (s["id_str"], s["text"], s["user"]["id_str"], s["created_at"], s["retweet_count"]))
+
+for s in umich_tweets:
+	cur.execute('INSERT OR IGNORE INTO Users (user_id, screen_name, num_favs, description) VALUES (?, ?, ?, ?)', (s["user"]["id_str"], s["user"]["screen_name"], s["user"]["favourites_count"], s["user"]["description"]))
 
 for s in umich_tweets:
 	for u in s['entities']['user_mentions']:
 		myvar = api.get_user(u['screen_name'])
-		print(myvar)
-		print()
 		cur.execute('INSERT OR IGNORE INTO Users (user_id, screen_name, num_favs, description) VALUES (?, ?, ?, ?)', (myvar["id_str"], myvar["screen_name"], myvar["favourites_count"], myvar["description"]))
 conn.commit()
 
@@ -185,27 +185,45 @@ conn.commit()
 # All of the following sub-tasks require writing SQL statements and executing them using Python.
 
 # Make a query to select all of the records in the Users database. Save the list of tuples in a variable called users_info.
-
+users_infoer = cur.execute('SELECT * FROM Users')
+users_info = []
+for s in users_infoer:
+	users_info.append(s)
+# for s in users_info:
+# 	print(s)
+# 	print (type(s))
 # Make a query to select all of the user screen names from the database. Save a resulting list of strings (NOT tuples, the strings inside them!) in the variable screen_names. HINT: a list comprehension will make this easier to complete!
 
+query = cur.execute('SELECT screen_name FROM Users')
+screen_names = []
+for s in query:
+	screen_names.append(s[0])
 
 # Make a query to select all of the tweets (full rows of tweet information) that have been retweeted more than 25 times. Save the result (a list of tuples, or an empty list) in a variable called more_than_25_rts.
 
-
-
+start_off = cur.execute('SELECT * FROM Tweets WHERE retweets > 25')
+more_than_25_rts = []
+for s in start_off:
+	more_than_25_rts.append(s)
 # Make a query to select all the descriptions (descriptions only) of the users who have favorited more than 25 tweets. Access all those strings, and save them in a variable called descriptions_fav_users, which should ultimately be a list of strings.
-
+descriptions_fav_users = []
+query = cur.execute('SELECT description FROM Users WHERE user_id = (SELECT user_id FROM Tweets WHERE retweets > 25)')
+for s in query:
+	descriptions_fav_users.append(s[0])
 
 
 # Make a query using an INNER JOIN to get a list of tuples with 2 elements in each tuple: the user screenname and the text of the tweet -- for each tweet that has been retweeted more than 50 times. Save the resulting list of tuples in a variable called joined_result.
 
-
-
+query = cur.execute('SELECT Users.screen_name, Tweets.text FROM Users INNER JOIN Tweets ON Tweets.user_id = Users.user_id WHERE Tweets.retweets > 50')
+joined_result = []
+for q in query:
+	joined_result.append(q)
 
 ## Task 4 - Manipulating data with comprehensions & libraries
 
 ## Use a set comprehension to get a set of all words (combinations of characters separated by whitespace) among the descriptions in the descriptions_fav_users list. Save the resulting set in a variable called description_words.
 
+description_words = []
 
 
 ## Use a Counter in the collections library to find the most common character among all of the descriptions in the descriptions_fav_users list. Save that most common character in a variable called most_common_char. Break any tie alphabetically (but using a Counter will do a lot of work for you...).
