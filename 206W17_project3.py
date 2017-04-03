@@ -110,7 +110,7 @@ cur = conn.cursor()
 cur.execute('DROP TABLE IF EXISTS Tweets')
 
 table_spec = 'CREATE TABLE Tweets '
-table_spec += '(tweet_id TEXT PRIMARY KEY, text TEXT, user_id Text, time_posted TIMESTAMP, retweets INTEGER)'
+table_spec += '(tweet_id TEXT PRIMARY KEY, text TEXT, user_id TEXT, time_posted TIMESTAMP, retweets INTEGER)'
 cur.execute(table_spec)
 
 cur.execute('DROP TABLE IF EXISTS Users')
@@ -127,55 +127,17 @@ for s in umich_tweets:
 
 for s in umich_tweets:
 	for u in s['entities']['user_mentions']:
-		myvar = api.get_user(u['screen_name'])
+		unique_identifier = "user_{}".format(u['screen_name'])
+		if unique_identifier in CACHE_DICTION:
+			myvar = CACHE_DICTION[unique_identifier]
+		else:
+			myvar = api.get_user(u['screen_name'])
+			CACHE_DICTION[unique_identifier] = myvar
+			f = open(CACHE_FNAME, 'w')
+			f.write(json.dumps(CACHE_DICTION))
+			f.close()
 		cur.execute('INSERT OR IGNORE INTO Users (user_id, screen_name, num_favs, description) VALUES (?, ?, ?, ?)', (myvar["id_str"], myvar["screen_name"], myvar["favourites_count"], myvar["description"]))
 conn.commit()
-
-# def find_user_in_db(conn, cur, user):
-# 	cur.execute("SELECT * FROM Users WHERE screen_name = ?", (user,))
-# 	if not cur.fetchone(): # If there isn't even one when you try to select one,
-# 		cur.execute('INSERT INTO Users (screen_name) VALUES (?)', (user))
-# 		conn.commit() 
-
-# 	cur.execute('SELECT user_id FROM Users WHERE screen_name = ?', (user,))
-# 	user_id = cur.fetchone()[0]
-# 	return user_id
-
-# def save_tweet(conn, cur, s):
-# 	for s in umich_tweets:
-# 		tweet_id = s['id_str']
-# 		text = s['text']
-# 		user_id = s['user']['screen_name']
-# 		time_posted = s["created_at"]
-# 		retweets = s["retweet_count"]
-
-# 	users = s['entities']['user_mentions']
-
-
-# 	for user in users: # each hashtag dictionary in a list??
-# 		find_user_in_db(conn, cur, user)
-
-# 	if len(users) > 0:
-# 		first_screen_name = users[0]["text"]
-# 		first_user_id = find_user_in_db(conn, cur, first_screen_name)
-# 	else:
-# 		first_user_id = None
-
-# 	cur.execute('SELECT * FROM Tweets WHERE tweet_id=' + str(tweet_id))
-
-# 	if not cur.fetchone(): # If a tweet with that id doesn't exist already,
-# 		cur.execute('INSERT OR IGNORE INTO Tweets VALUES (?, ?, ?, ?, ?)', (tweet_id, text, first_user_id, time_posted, retweets))
-# 		conn.commit()
-
-# f = open("SI206_project3_cache.json", "r")
-# fstr = f.read()
-# obj_lst = json.loads(fstr)
-# f.close()
-# for tweet in obj_lst:
-# 	save_tweet(conn, cur, tweet)
-
-
-
 
 
 
@@ -206,15 +168,16 @@ more_than_25_rts = []
 for s in start_off:
 	more_than_25_rts.append(s)
 # Make a query to select all the descriptions (descriptions only) of the users who have favorited more than 25 tweets. Access all those strings, and save them in a variable called descriptions_fav_users, which should ultimately be a list of strings.
-descriptions_fav_users = []
-query = cur.execute('SELECT description FROM Users WHERE user_id = (SELECT user_id FROM Tweets WHERE retweets > 25)')
-for s in query:
-	descriptions_fav_users.append(s[0])
 
+descriptions_fav_users = []
+query = cur.execute('SELECT description FROM Users WHERE num_favs > 25')
+for row in query:
+	for s in row:
+		descriptions_fav_users.append(s)
 
 # Make a query using an INNER JOIN to get a list of tuples with 2 elements in each tuple: the user screenname and the text of the tweet -- for each tweet that has been retweeted more than 50 times. Save the resulting list of tuples in a variable called joined_result.
 
-query = cur.execute('SELECT Users.screen_name, Tweets.text FROM Users INNER JOIN Tweets ON Tweets.user_id = Users.user_id WHERE Tweets.retweets > 50')
+query = cur.execute('SELECT Users.screen_name, Tweets.text FROM Users INNER JOIN Tweets ON instr(Tweets.user_id, Users.user_id) WHERE Tweets.retweets > 50')
 joined_result = []
 for q in query:
 	joined_result.append(q)
@@ -223,10 +186,22 @@ for q in query:
 
 ## Use a set comprehension to get a set of all words (combinations of characters separated by whitespace) among the descriptions in the descriptions_fav_users list. Save the resulting set in a variable called description_words.
 
-description_words = []
-
+description_words = {word for f in descriptions_fav_users for word in f.split()}
 
 ## Use a Counter in the collections library to find the most common character among all of the descriptions in the descriptions_fav_users list. Save that most common character in a variable called most_common_char. Break any tie alphabetically (but using a Counter will do a lot of work for you...).
+temp_list = []
+word = ''
+for s in description_words:
+	# print(type(s))
+	word = word + s 
+rword = word.lower()
+temp_list = collections.Counter(rword).most_common()
+listed = sorted(temp_list, key = lambda x: x[0])
+real_list = sorted(listed, key = lambda x: x[1], reverse = True)
+most_common_char = real_list[0][0]
+# print(most_common_char)
+# print()
+# print(real_list)
 
 
 
@@ -234,10 +209,20 @@ description_words = []
 # Write code to create a dictionary whose keys are Twitter screen names and whose associated values are lists of tweet texts that that user posted. You may need to make additional queries to your database! To do this, you can use, and must use at least one of: the DefaultDict container in the collections library, a dictionary comprehension, list comprehension(s). Y
 # You should save the final dictionary in a variable called twitter_info_diction.
 
-
+query = 'SELECT Users.screen_name, Tweets.text FROM Tweets INNER JOIN Users ON instr(Tweets.user_id, Users.user_id)'
+result = cur.execute(query)
+keyval = result.fetchall()
+key_list = [s[0] for s in keyval]
+value_list = [s[1] for s in keyval]
+twitter_info_diction = {}
+for i in range(len(keyval)):
+	if key_list[i] in twitter_info_diction.keys():
+		twitter_info_diction[key_list[i]].append(value_list[i])
+	else:
+		twitter_info_diction[key_list[i]] = [value_list[i]]
 
 ### IMPORTANT: MAKE SURE TO CLOSE YOUR DATABASE CONNECTION AT THE END OF THE FILE HERE SO YOU DO NOT LOCK YOUR DATABASE (it's fixable, but it's a pain). ###
-
+conn.close()
 
 ###### TESTS APPEAR BELOW THIS LINE ######
 ###### Note that the tests are necessary to pass, but not sufficient -- must make sure you've followed the instructions accurately! ######
